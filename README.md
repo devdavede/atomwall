@@ -78,7 +78,7 @@ A **single YAML config** drives everything. It's read at startup, reloadable by 
 
 ```sh
 # clone with submodules (vcpkg is vendored)
-git clone --recurse-submodules <this-repo>
+git clone --recurse-submodules https://github.com/devdavede/atomwall.git
 cd atomwall
 
 # configure, build, test, run — all in one
@@ -151,6 +151,8 @@ atomwall *is* the security boundary for whatever sits behind it:
 
 atomwall logs client IP addresses (request log, ban/score tracker, login history, GeoIP lookups) as part of doing its job. Depending on where you operate, IP addresses can be considered personal data (e.g. under GDPR), and logging them — or resolving them to a location via GeoIP — may carry legal obligations. This project doesn't do that assessment for you: **you are responsible for having a privacy notice appropriate to your jurisdiction and use case**, and for configuring retention/logging (or disabling features like GeoIP) accordingly.
 
+If you enable GeoIP, the `.mmdb` database itself isn't bundled — you supply it (MaxMind GeoLite2 or DB-IP Lite), and both require you to give attribution for their data. See [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md#geoip-data-not-bundled--operator-supplied) for the required wording.
+
 ## 🧱 Tech stack
 
 - **C++20**, built with **CMake + vcpkg** for fully reproducible builds
@@ -159,6 +161,7 @@ atomwall logs client IP addresses (request log, ban/score tracker, login history
 - **OpenSSL** for TLS termination and password hashing primitives
 - **yaml-cpp** for config, **spdlog** for logging, **Catch2** for tests
 - **libmaxminddb** for GeoIP/ASN lookups
+- **[globe.gl](https://github.com/vasturiano/globe.gl)** + **[three.js](https://github.com/mrdoob/three.js)** (MIT-licensed, vendored) for the Live Visitor Globe — see [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)
 
 ## 🗺️ Status
 
