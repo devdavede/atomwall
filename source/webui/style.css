@@ -133,10 +133,16 @@ main {
   min-width: 0;
 }
 
-.side-nav, .side-stats {
+.side-nav, .side-column {
   position: sticky;
   top: 84px;
   min-width: 0;
+}
+
+.side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .side-nav {
@@ -219,6 +225,25 @@ main {
   font-size: 11px;
 }
 
+.github-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.github-link:hover {
+  border-color: var(--accent);
+  background: var(--bg-inset);
+}
+
 @media (max-width: 1150px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
@@ -238,8 +263,10 @@ main {
   .side-nav a.active {
     border-color: var(--accent);
   }
-  .side-stats {
+  .side-column {
     position: static;
+  }
+  .side-stats {
     flex-direction: row;
     flex-wrap: wrap;
   }
