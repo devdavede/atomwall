@@ -5,7 +5,7 @@
 <h1 align="center">atomwall</h1>
 
 <p align="center">
-  <b>A self-hosted, C++20 reverse proxy that sits in front of your origin the way Cloudflare does —</b><br>
+  <b>A self-hosted, C++20 reverse proxy that sits in front of your origin —</b><br>
   terminate TLS, inspect every request, ban the bad ones, and forward the rest. On your own box.
 </p>
 
@@ -147,6 +147,10 @@ atomwall *is* the security boundary for whatever sits behind it:
 - Sessions: `HttpOnly` + `SameSite=Strict`, `Secure` automatically whenever the admin server runs behind TLS.
 - The public Live Globe listener is unauthenticated *by design* — its event type structurally cannot carry an IP or any other identifying field, so there's nothing to leak.
 
+## ⚖️ Privacy note
+
+atomwall logs client IP addresses (request log, ban/score tracker, login history, GeoIP lookups) as part of doing its job. Depending on where you operate, IP addresses can be considered personal data (e.g. under GDPR), and logging them — or resolving them to a location via GeoIP — may carry legal obligations. This project doesn't do that assessment for you: **you are responsible for having a privacy notice appropriate to your jurisdiction and use case**, and for configuring retention/logging (or disabling features like GeoIP) accordingly.
+
 ## 🧱 Tech stack
 
 - **C++20**, built with **CMake + vcpkg** for fully reproducible builds
@@ -162,4 +166,4 @@ This is an actively evolving project — the pipeline, admin API, and threat-det
 
 ---
 
-<p align="center"><i>Built for people who want Cloudflare-grade request inspection without handing their traffic to Cloudflare.</i></p>
+<p align="center"><i>Built for people who want serious request inspection without handing their traffic to a third party.</i></p>
