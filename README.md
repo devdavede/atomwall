@@ -55,6 +55,17 @@ Think of it as a WAF + reverse proxy + admin console, built from scratch in mode
 | 📊 **Live admin dashboard** | SSE-powered request stream, traffic graph, blacklist management, IP block viewer, login history — all served from an in-process API, zero build step. |
 | 📝 **Custom response pages** | Admin-editable block/ban pages, plus per-status-code overrides that swap the *origin's* error page body while preserving its real status code. |
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="images/Screenshot_1.png" alt="Admin login" width="49%">
+  <img src="images/Screenshot_2.png" alt="Live Visitor Globe panel" width="49%">
+</p>
+<p align="center">
+  <img src="images/Screenshot_3.png" alt="Live request stream" width="49%">
+  <img src="images/Screenshot_4.png" alt="Blacklist management" width="49%">
+</p>
+
 ## Architecture
 
 ```
