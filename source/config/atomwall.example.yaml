@@ -1,0 +1,163 @@
+# Example atomwall config. The running config lives at source/config/atomwall.yaml
+# (gitignored — it's runtime state, rewritten by the admin API on every blacklist
+# change). Copy this file there to start from a known-good baseline, or just let
+# atomwall write out its defaults on first run.
+
+http:
+  enabled: true
+  bind: "0.0.0.0"
+  port: 80
+
+https:
+  enabled: true
+  bind: "0.0.0.0"
+  port: 443
+  cert_file: "certs/dev.crt"   # run/gen-dev-cert.sh writes a self-signed pair here
+  key_file: "certs/dev.key"
+
+upstream:
+  host: "127.0.0.1"
+  port: 8000
+
+# Additional domains layered on top of the default site above (https.cert_file/
+# key_file + upstream.host/port). A request's Host header (HTTP) / TLS SNI name
+# (HTTPS) is matched by EXACT, case-insensitive equality against `domain` here —
+# never substring — and falls back to the default site if nothing matches.
+# Every blacklist/ban/pages/etc. setting below stays global and applies to every
+# site, named or default. `enabled: false` takes a site offline (403) without
+# removing its config — toggle it via the admin UI or PUT /api/sites/{domain}.
+sites: []
+  # - domain: "other.example"
+  #   enabled: true
+  #   cert_file: "certs/other.example.crt"
+  #   key_file: "certs/other.example.key"
+  #   upstream:
+  #     host: "127.0.0.1"
+  #     port: 8001
+
+admin:
+  enabled: true
+  bind: "127.0.0.1"   # non-loopback is refused UNLESS both tls_cert_file/tls_key_file
+                        # below are set — TLS is a hard precondition for exposing this
+                        # beyond loopback (it also gates the Secure cookie flag)
+  port: 9000
+  static_dir: "webui"  # relative to the working directory atomwall is run from
+  tls_cert_file: ""    # both empty = plain HTTP, loopback-only (the default)
+  tls_key_file: ""     # set both to allow admin.bind to be non-loopback
+
+limits:
+  max_header_bytes: 16384
+  max_body_bytes: 10485760
+  upstream_connect_timeout_seconds: 5
+  request_timeout_seconds: 30
+
+# Every blacklist entry below is a {value, created_at} pair — created_at is stamped
+# automatically by the admin API and is informational only (when was this added), not
+# enforced. A bare scalar (e.g. "- /wp-admin" instead of "- value: /wp-admin ...") is
+# still accepted when hand-editing this file; created_at is backfilled to load time.
+blacklist:
+  ips: []               # PERMANENT exact IPs or CIDR ranges, e.g. "203.0.113.7", "198.51.100.0/24"
+                          # — temporary blocks (manual with a duration, or score-triggered)
+                          # live in memory instead, not in this file; see CLAUDE.md
+  routes: []              # case-insensitive substring match against the request path
+                          # (query string excluded), e.g. "/wp-admin"
+  countries: []          # ISO codes — stored but inert, no GeoIP source wired yet
+  isps: []                # same as countries — stored but inert
+  user_agents: []        # case-insensitive substring match, e.g. "sqlmap"
+  referrers: []          # case-insensitive substring match against the Referer header
+  body_patterns: []      # case-insensitive substring match against the request body
+  fake_routes: []         # honeypot paths, e.g. "/wp-login-backup". Never link these from
+                          # real content — atomwall advertises them to crawlers as Disallow
+                          # entries in /robots.txt (only when this list is non-empty) and
+                          # blocks + scores (score name "fake_route", see ban.scores below)
+                          # any request that hits one anyway, since a well-behaved crawler
+                          # never requests a path robots.txt told it to skip.
+  max_body_size_bytes: 0 # soft limit: scores + 403s cleanly if exceeded. 0 = disabled.
+                          # distinct from limits.max_body_bytes above, which is a hard
+                          # parser-level cap that aborts the connection instead.
+
+# Off by default. When enabled, each blocked request adds its check's point value to that
+# client IP's running score; crossing `threshold` blocks the IP for `ban_duration_hours`
+# and resets its score. Auto-bans show up in the IP/CIDR blacklist view tagged "score".
+ban:
+  enabled: false
+  threshold: 100
+  ban_duration_hours: 24
+  scores:
+    route_blacklist: 50
+    user_agent_blacklist: 100
+    referrer_blacklist: 50
+    body_blacklist: 75
+    body_size_limit: 60
+    country_blacklist: 25
+    isp_blacklist: 25
+    speed_check: 40
+    fake_route: 100
+    method_not_allowed: 50
+
+# Off by default. When enabled, a client IP navigating faster than
+# max_requests within a window_seconds sliding window scores + 403s that
+# request (score name: "speed_check", see ban.scores above) — same
+# block-and-score pattern as every other check, not a separate mechanism.
+# Tracked in memory per IP, lost on restart, same as the ban/score state above.
+speed_check:
+  enabled: false
+  max_requests: 20
+  window_seconds: 10
+
+# Off by default. When enabled, any request whose method isn't in
+# allowed_methods (case-insensitive) scores + 403s that request (score name:
+# "method_not_allowed", see ban.scores above) — same block-and-score pattern
+# as every other check. An empty list while enabled is rejected by the admin
+# API since that would block every request.
+method_check:
+  enabled: false
+  allowed_methods: ["GET", "POST", "HEAD"]
+
+# Shown to clients on a block. Empty string = use the built-in default page. "blocked_html"
+# is for rule-based blocks (blacklist matches, body-size limit); "banned_html" is specifically
+# for temporary/score-triggered IP blocks.
+pages:
+  blocked_html: ""
+  banned_html: ""
+
+# Off by default. The admin request log (RequestLog) is normally an in-memory
+# ring buffer only, lost on restart. When enabled, every recorded request is
+# ALSO appended to csv_path, batched 100 events per flush on a dedicated
+# background thread (never on a request-handling thread — see CLAUDE.md
+# Performance posture). Takes effect on the next restart, same as
+# http.enabled/https.enabled/admin.enabled above.
+request_log:
+  enabled: false
+  csv_path: "config/requests.csv"
+
+# Admin accounts (username/password-hash pairs) are NOT stored here — see
+# config/users.yaml (gitignored), created on first admin-UI visit via the setup flow.
+
+# GeoIP source for the Country column in the admin request log and for the live
+# visitor globe below. mmdb_path must point at a MaxMind GeoLite2-City database
+# (free MaxMind account required, not bundled with atomwall). Empty = GeoIP
+# disabled: country stays "unknown" and no globe arcs are recorded.
+geoip:
+  mmdb_path: ""
+
+# Live visitor globe: draws an arc from each visitor's approximate city to the
+# server's location, green for allowed requests and red for blocked ones. Always
+# viewable in the admin UI at GET/PUT /api/globe-config, /api/globe/snapshot,
+# /api/globe/stream (loopback, authenticated). public_enabled additionally starts
+# a SEPARATE, dedicated, UNAUTHENTICATED public listener on public_port so the
+# globe can be embedded on the protected site itself via a single <script> tag —
+# safe to expose because the underlying event log only ever carries
+# {timestamp, lat, lon, blocked}, never an IP or any other identifying field.
+# This port is intentionally distinct from both the public :80/:443 listeners and
+# the loopback-only admin port (see CLAUDE.md).
+globe:
+  public_enabled: false
+  public_bind: "0.0.0.0"
+  public_port: 9443
+  public_tls_cert_file: ""  # both empty = plain HTTP; set both to serve TLS
+  public_tls_key_file: ""   # (needed to embed on an HTTPS page without mixed-content errors)
+  server_lat: null          # manual override; if null and auto_detect_server_location is
+  server_lon: null          # true, resolved once at startup via GeoIP on the server's public IP
+  auto_detect_server_location: true
+  history_size: 500         # ring buffer size for recent arc events, lost on restart

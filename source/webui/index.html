@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atomwall</title>
+<link rel="icon" type="image/png" href="favicon-32.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <img class="brand-mark" src="icon-128.png" alt="" width="24" height="24">
+    <span class="brand-name">atomwall</span>
+  </div>
+  <div class="topbar-right">
+    <div id="status" class="status">loading&hellip;</div>
+    <button type="button" class="logout-btn" id="logout-btn">Log out</button>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="side-nav" aria-label="Sections">
+    <a href="#overview" data-nav>Overview</a>
+    <a href="#sites-panel" data-nav>Sites</a>
+    <a href="#traffic-panel" data-nav>Traffic</a>
+    <a href="#requests-panel" data-nav>Requests</a>
+    <a href="#globe-panel" data-nav>Live Globe</a>
+    <a href="#whitelist-panel" data-nav>Whitelist</a>
+    <a href="#blacklist-ips" data-nav>IP / CIDR</a>
+    <a href="#blacklist-routes" data-nav>Routes</a>
+    <a href="#blacklist-fake_routes" data-nav>Fake routes</a>
+    <a href="#blacklist-user_agents" data-nav>User-Agent</a>
+    <a href="#blacklist-referrers" data-nav>Referrer</a>
+    <a href="#blacklist-body_patterns" data-nav>Body content</a>
+    <a href="#blacklist-countries" data-nav>Country</a>
+    <a href="#blacklist-isps" data-nav>ISP</a>
+    <a href="#ban-panel" data-nav>Ban &amp; scoring</a>
+    <a href="#speed-panel" data-nav>Speed check</a>
+    <a href="#limits-panel" data-nav>Limits</a>
+    <a href="#pages-panel" data-nav>Response pages</a>
+    <a href="#users-panel" data-nav>Users</a>
+  </nav>
+
+  <main>
+    <section class="panel" id="overview">
+      <h2>Overview</h2>
+      <div class="overview-grid" id="overview-grid"></div>
+    </section>
+
+    <section class="panel" id="sites-panel">
+      <h2>Sites</h2>
+      <p class="hint">Additional domains layered on top of the default site below. A
+        request's Host header (HTTP) / TLS SNI name (HTTPS) is matched by exact,
+        case-insensitive equality against a site's domain and routed to that site's own
+        upstream and certificate. Blacklists, ban &amp; scoring, response pages, etc. stay
+        global and apply to every site. Disabling a site 403s it without deleting its config.</p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table" id="sites-table">
+          <thead>
+            <tr><th>Domain</th><th>Upstream</th><th>Cert</th><th>Enabled</th><th></th></tr>
+          </thead>
+          <tbody id="sites-body"></tbody>
+        </table>
+      </div>
+      <p class="hint" id="sites-default-summary"></p>
+      <form class="add-form" id="site-add-form">
+        <input type="text" id="site-add-domain" placeholder="Domain, e.g. other.example" required>
+        <input type="text" id="site-add-upstream-host" placeholder="Upstream host" value="127.0.0.1" required>
+        <input type="number" id="site-add-upstream-port" placeholder="Upstream port" min="1" max="65535" required>
+        <input type="text" id="site-add-cert-file" placeholder="Cert file (for HTTPS)">
+        <input type="text" id="site-add-key-file" placeholder="Key file (for HTTPS)">
+        <button type="submit">Add site</button>
+      </form>
+    </section>
+
+    <section class="panel" id="traffic-panel">
+      <h2>Traffic</h2>
+      <p class="hint">Request + response bytes per second, last 60s.</p>
+      <div class="traffic-canvas-wrap">
+        <canvas id="traffic-canvas"></canvas>
+        <div class="traffic-current" id="traffic-current">0.00 MB/s</div>
+      </div>
+    </section>
+
+    <section class="panel" id="requests-panel">
+      <h2>Requests
+        <span class="live-indicator" id="live-indicator">
+          <span class="live-dot"></span>connecting&hellip;
+        </span>
+      </h2>
+      <p class="hint">Live-updating; also serves as recent history. Country/ISP show
+        <code>unknown</code> until a GeoIP/ASN source is wired in.</p>
+      <div class="toggle-row">
+        <input type="checkbox" id="request-log-persist-enabled">
+        <label for="request-log-persist-enabled">Persist requests to a CSV file (batched every 100)</label>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label for="request-log-csv-path">CSV path</label>
+          <input type="text" id="request-log-csv-path" placeholder="config/requests.csv">
+        </div>
+      </div>
+      <p class="hint">Takes effect on the next restart, same as the listener enable/disable
+        toggles.</p>
+      <button type="button" class="save-btn" id="request-log-save-btn">Save</button>
+      <div class="list-controls">
+        <label for="requests-page-size" class="page-size-label">Show
+          <select id="requests-page-size">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+          entries
+        </label>
+        <button type="button" class="save-btn" id="requests-export-csv">Export CSV</button>
+        <button type="button" class="save-btn" id="requests-export-xml">Export XML</button>
+      </div>
+      <div class="list-controls requests-filter-row">
+        <select id="requests-filter-status">
+          <option value="">All statuses</option>
+          <option value="allowed">Allowed</option>
+          <option value="blocked">Blocked</option>
+        </select>
+        <input type="text" id="requests-filter-code" placeholder="Code (e.g. 403, 5)">
+        <input type="text" id="requests-filter-ip" placeholder="IP">
+        <input type="text" id="requests-filter-domain" placeholder="Domain">
+        <input type="text" id="requests-filter-country" placeholder="Country">
+        <input type="text" id="requests-filter-isp" placeholder="ISP">
+        <input type="text" id="requests-filter-method" placeholder="Method">
+        <input type="text" id="requests-filter-path" placeholder="Path">
+        <input type="text" id="requests-filter-ua" placeholder="User-Agent">
+      </div>
+      <div class="requests-bulk-actions" id="requests-bulk-actions" hidden>
+        <span class="hint" id="requests-selected-count"></span>
+        <div class="requests-bulk-actions-buttons">
+          <button type="button" class="clear-all-btn" id="requests-block-ips">Block selected IPs</button>
+          <button type="button" class="clear-all-btn" id="requests-block-isps">Block selected ISPs</button>
+          <button type="button" class="clear-all-btn" id="requests-block-routes">Block selected routes</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="requests-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="requests-select-all"></th>
+              <th data-sort-key="time">Time</th>
+              <th data-sort-key="status">Status</th>
+              <th data-sort-key="code">Code</th>
+              <th data-sort-key="ip">IP</th>
+              <th data-sort-key="domain">Domain</th>
+              <th data-sort-key="country">Country</th>
+              <th data-sort-key="isp">ISP</th>
+              <th data-sort-key="method">Method</th>
+              <th data-sort-key="path">Path</th>
+              <th data-sort-key="user_agent">User-Agent</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="requests-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="globe-panel">
+      <h2>Live Globe</h2>
+      <p class="hint">Every allowed (green) or blocked (red) request drawn as an arc from the
+        visitor's approximate city to this server's location. The underlying event only ever
+        carries a rounded lat/lon and allow/block &mdash; never an IP, so this view (and the
+        public embed below) can never show a visitor's identity.</p>
+      <div class="globe-canvas-wrap" id="globe-canvas-wrap"></div>
+
+      <div class="settings-grid settings-grid-thirds">
+        <div class="settings-field">
+          <label for="globe-geoip-status">City database status</label>
+          <div id="globe-geoip-status" class="field-static">&hellip;</div>
+        </div>
+        <div class="settings-field">
+          <label for="globe-asn-status">ASN database status</label>
+          <div id="globe-asn-status" class="field-static">&hellip;</div>
+        </div>
+        <div class="settings-field">
+          <label for="globe-server-location">Server location</label>
+          <div id="globe-server-location" class="field-static">&hellip;</div>
+        </div>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label for="geoip-mmdb-path">GeoLite2-City .mmdb path (Country)</label>
+          <input type="text" id="geoip-mmdb-path" placeholder="/etc/atomwall/geoip/GeoLite2-City.mmdb">
+        </div>
+        <div class="settings-field">
+          <label for="asn-mmdb-path">ASN .mmdb path (ISP)</label>
+          <input type="text" id="asn-mmdb-path" placeholder="/etc/atomwall/geoip/GeoLite2-ASN.mmdb">
+        </div>
+      </div>
+      <p class="hint">Two separate databases, both optional. Country/globe needs a City
+        database (MaxMind GeoLite2-City, DB-IP City Lite); ISP needs a separate ASN database
+        (MaxMind GeoLite2-ASN, DB-IP ASN Lite) &mdash; both require a free account with their
+        provider. Upload directly below or place the file on the server yourself and save the
+        path. Either way, atomwall only loads databases at startup, so a restart is needed
+        after saving or uploading.</p>
+      <button type="button" class="save-btn" id="geoip-save-btn">Save paths</button>
+      <label class="import-btn" id="geoip-upload-btn">Upload GeoLite2-City.mmdb
+        <input type="file" id="geoip-upload-input" accept=".mmdb" hidden>
+      </label>
+      <label class="import-btn" id="asn-upload-btn">Upload ASN .mmdb
+        <input type="file" id="asn-upload-input" accept=".mmdb" hidden>
+      </label>
+      <span class="hint" id="geoip-upload-status"></span>
+
+      <p class="field-label">Server GPS override</p>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label for="globe-server-lat">Latitude (blank = auto-detect)</label>
+          <input type="number" id="globe-server-lat" step="any" min="-90" max="90">
+        </div>
+        <div class="settings-field">
+          <label for="globe-server-lon">Longitude (blank = auto-detect)</label>
+          <input type="number" id="globe-server-lon" step="any" min="-180" max="180">
+        </div>
+      </div>
+
+      <p class="field-label">Public embed (unauthenticated, separate port)</p>
+      <p class="hint">When enabled, starts a dedicated public listener &mdash; distinct from
+        both the proxy ports and this admin port &mdash; serving only anonymized arc data, so
+        the globe can be embedded on the protected site itself via one &lt;script&gt; tag.</p>
+      <div class="toggle-row">
+        <input type="checkbox" id="globe-public-enabled">
+        <label for="globe-public-enabled">Enable public embed listener</label>
+      </div>
+      <div id="globe-public-fields" hidden>
+        <div class="settings-grid">
+          <div class="settings-field">
+            <label for="globe-public-bind">Bind address</label>
+            <input type="text" id="globe-public-bind" placeholder="0.0.0.0">
+          </div>
+          <div class="settings-field">
+            <label for="globe-public-port">Port</label>
+            <input type="number" id="globe-public-port" min="1" max="65535">
+          </div>
+          <div class="settings-field">
+            <label for="globe-public-tls-cert">TLS cert file (blank = plain HTTP)</label>
+            <input type="text" id="globe-public-tls-cert" placeholder="certs/dev.crt">
+          </div>
+          <div class="settings-field">
+            <label for="globe-public-tls-key">TLS key file</label>
+            <input type="text" id="globe-public-tls-key" placeholder="certs/dev.key">
+          </div>
+        </div>
+        <p class="hint">Takes effect on restart, like the http/https/admin listener toggles.</p>
+
+        <p class="field-label">Embed snippet</p>
+        <textarea class="pages-textarea" id="globe-embed-snippet" rows="2" readonly></textarea>
+      </div>
+      <button type="button" class="save-btn" id="globe-save-btn">Save</button>
+    </section>
+
+    <section class="panel" id="whitelist-panel">
+      <h2>Whitelist</h2>
+      <p class="hint">Exact IPs or CIDR ranges, IPv4 or IPv6. A whitelisted IP bypasses every
+        check — the temporary/auto-ban gate, every blacklist, speed check, and method
+        allowlist — no matter what it does. Always permanent; there's no time-limited
+        whitelist entry, and nothing here auto-expires.</p>
+      <div class="list-controls">
+        <input type="search" class="filter-input" data-category="whitelist" placeholder="Filter entries...">
+        <label class="page-size-label">Show
+          <select class="page-size-select" data-category="whitelist">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <button type="button" class="clear-all-btn" data-category="whitelist">Clear all</button>
+      </div>
+      <p class="hint list-count" id="count-whitelist"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>Address</th><th>Source</th><th>Added</th><th>Expires</th><th></th></tr>
+          </thead>
+          <tbody id="list-whitelist"></tbody>
+        </table>
+      </div>
+      <form class="add-form" data-category="whitelist">
+        <input type="text" placeholder="203.0.113.7 or 198.51.100.0/24" required>
+        <button type="submit">Whitelist</button>
+      </form>
+      <form class="import-url-form" data-category="whitelist">
+        <input type="url" placeholder="https://example.com/whitelist.txt" required>
+        <button type="submit">Import from URL</button>
+        <label class="import-btn">Upload .list (one entry per line, always permanent)
+          <input type="file" class="import-input" data-category="whitelist" accept=".list,.txt,text/plain" hidden>
+        </label>
+      </form>
+    </section>
+
+    <section class="panel" id="blacklist-ips">
+      <h2>IP / CIDR blacklist</h2>
+      <p class="hint">Exact IPs or CIDR ranges, IPv4 or IPv6. Manual blocks can be permanent or
+        time-limited; score-triggered blocks (see Ban &amp; scoring) always show up here too,
+        tagged <span class="source-pill score">auto</span>.</p>
+      <div class="list-controls">
+        <input type="search" id="ip-filter" placeholder="Filter entries...">
+        <label class="page-size-label">Show
+          <select class="page-size-select" data-category="ips">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <button type="button" class="clear-all-btn" data-category="ips">Clear all</button>
+      </div>
+      <p class="hint list-count" id="count-ips"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>Address</th><th>Source</th><th>Added</th><th>Expires</th><th></th></tr>
+          </thead>
+          <tbody id="ip-blocks-body"></tbody>
+        </table>
+      </div>
+      <form class="ip-add-form" id="ip-add-form">
+        <input type="text" id="ip-add-value" placeholder="203.0.113.7 or 198.51.100.0/24" required>
+        <input type="number" id="ip-add-hours" placeholder="Hours (blank = permanent)" min="1">
+        <button type="submit">Block</button>
+      </form>
+      <form class="import-url-form" data-category="ips">
+        <input type="url" placeholder="https://example.com/ip-list.txt" required>
+        <button type="submit">Import from URL</button>
+        <label class="import-btn">Upload .list (one entry per line, always permanent)
+          <input type="file" class="import-input" data-category="ips" accept=".list,.txt,text/plain" hidden>
+        </label>
+      </form>
+    </section>
+
+    <section class="panel" id="blacklist-routes">
+      <h2>Blocked routes</h2>
+      <p class="hint">Case-insensitive substring match against the request path (query string
+        excluded), e.g. <code>/wp-admin</code> blocks that path and anything under it.</p>
+      <div class="list-controls">
+        <input type="search" class="filter-input" data-category="routes" placeholder="Filter entries...">
+        <label class="page-size-label">Show
+          <select class="page-size-select" data-category="routes">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <button type="button" class="clear-all-btn" data-category="routes">Clear all</button>
+      </div>
+      <p class="hint list-count" id="count-routes"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>Route</th><th>Source</th><th>Added</th><th>Expires</th><th></th></tr>
+          </thead>
+          <tbody id="list-routes"></tbody>
+        </table>
+      </div>
+      <form class="add-form" data-category="routes">
+        <input type="text" placeholder="e.g. /wp-admin" required>
+        <button type="submit">Block</button>
+      </form>
+      <form class="import-url-form" data-category="routes">
+        <input type="url" placeholder="https://example.com/routes.txt" required>
+        <button type="submit">Import from URL</button>
+        <label class="import-btn">Upload .list (one entry per line)
+          <input type="file" class="import-input" data-category="routes" accept=".list,.txt,text/plain" hidden>
+        </label>
+      </form>
+    </section>
+
+    <section class="panel" id="blacklist-fake_routes">
+      <h2>Fake routes <span class="badge">honeypot</span></h2>
+      <p class="hint">Paths that don't exist and are never linked from real content. As soon as
+        one is added here it's advertised as a <code>Disallow</code> entry in
+        <code>/robots.txt</code> — a well-behaved crawler will never request it. Anything that
+        requests one anyway is blocked and scored (score name <code>fake_route</code>, see Ban
+        &amp; scoring below) as a strong signal, not a normal route match. Must start with
+        <code>/</code>; prefix-matched, same as robots.txt's own Disallow semantics.</p>
+      <div class="list-controls">
+        <input type="search" class="filter-input" data-category="fake_routes" placeholder="Filter entries...">
+        <label class="page-size-label">Show
+          <select class="page-size-select" data-category="fake_routes">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <button type="button" class="clear-all-btn" data-category="fake_routes">Clear all</button>
+      </div>
+      <p class="hint list-count" id="count-fake_routes"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>Path</th><th>Source</th><th>Added</th><th>Expires</th><th></th></tr>
+          </thead>
+          <tbody id="list-fake_routes"></tbody>
+        </table>
+      </div>
+      <form class="add-form" data-category="fake_routes">
+        <input type="text" placeholder="e.g. /wp-login-backup" required>
+        <button type="submit">Add</button>
+      </form>
+      <form class="import-url-form" data-category="fake_routes">
+        <input type="url" placeholder="https://example.com/fake-routes.txt" required>
+        <button type="submit">Import from URL</button>
+        <label class="import-btn">Upload .list (one entry per line)
+          <input type="file" class="import-input" data-category="fake_routes" accept=".list,.txt,text/plain" hidden>
+        </label>
+      </form>
+    </section>
+
+    <section class="panel" id="blacklist-user_agents">
+      <h2>User-Agent blacklist</h2>
+      <p class="hint">Case-insensitive substring match against the request's <code>User-Agent</code> header.</p>
+      <div class="list-controls">
+        <input type="search" class="filter-input" data-category="user_agents" placeholder="Filter entries...">
+        <label class="page-size-label">Show
+          <select class="page-size-select" data-category="user_agents">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <button type="button" class="clear-all-btn" data-category="user_agents">Clear all</button>
+      </div>
+      <p class="hint list-count" id="count-user_agents"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>User-Agent</th><th>Source</th><th>Added</th><th>Expires</th><th></th></tr>
+          </thead>
+          <tbody id="list-user_agents"></tbody>
+        </table>
+      </div>
+      <form class="add-form" data-category="user_agents">
+        <input type="text" placeholder="e.g. sqlmap" required>
+        <button type="submit">Block</button>
+      </form>
+      <form class="import-url-form" data-category="user_agents">
+        <input type="url" placeholder="https://example.com/user-agents.txt" required>
+        <button type="submit">Import from URL</button>
+        <label class="import-btn">Upload .list (one entry per line)
+          <input type="file" class="import-input" data-category="user_agents" accept=".list,.txt,text/plain" hidden>
+        </label>
+      </form>
+    </section>
+
+    <section class="panel" id="blacklist-referrers">
+      <h2>Referrer blacklist</h2>
+      <p class="hint">Case-insensitive substring match against the request's <code>Referer</code> header.</p>
+      <div class="list-controls">
+        <input type="search" class="filter-input" data-category="referrers" placeholder="Filter entries...">
+        <label class="page-size-label">Show
+          <select class="page-size-select" data-category="referrers">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <button type="button" class="clear-all-btn" data-category="referrers">Clear all</button>
+      </div>
+      <p class="hint list-count" id="count-referrers"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>Referrer</th><th>Source</th><th>Added</th><th>Expires</th><th></th></tr>
+          </thead>
+          <tbody id="list-referrers"></tbody>
+        </table>
+      </div>
+      <form class="add-form" data-category="referrers">
+        <input type="text" placeholder="e.g. spam-site.example" required>
+        <button type="submit">Block</button>
+      </form>
+      <form class="import-url-form" data-category="referrers">
+        <input type="url" placeholder="https://example.com/referrers.txt" required>
+        <button type="submit">Import from URL</button>
+        <label class="import-btn">Upload .list (one entry per line)
+          <input type="file" class="import-input" data-category="referrers" accept=".list,.txt,text/plain" hidden>
+        </label>
+      </form>
+    </section>
+
+    <section class="panel" id="blacklist-body_patterns">
+      <h2>Body content blacklist</h2>
+      <p class="hint">Case-insensitive substring match against the raw request body.</p>
+      <div class="list-controls">
+        <input type="search" class="filter-input" data-category="body_patterns" placeholder="Filter entries...">
+        <label class="page-size-label">Show
+          <select class="page-size-select" data-category="body_patterns">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <button type="button" class="clear-all-btn" data-category="body_patterns">Clear all</button>
+      </div>
+      <p class="hint list-count" id="count-body_patterns"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>Pattern</th><th>Source</th><th>Added</th><th>Expires</th><th></th></tr>
+          </thead>
+          <tbody id="list-body_patterns"></tbody>
+        </table>
+      </div>
+      <form class="add-form" data-category="body_patterns">
+        <input type="text" placeholder="e.g. &lt;script&gt;" required>
+        <button type="submit">Block</button>
+      </form>
+      <form class="import-url-form" data-category="body_patterns">
+        <input type="url" placeholder="https://example.com/body-patterns.txt" required>
+        <button type="submit">Import from URL</button>
+        <label class="import-btn">Upload .list (one entry per line)
+          <input type="file" class="import-input" data-category="body_patterns" accept=".list,.txt,text/plain" hidden>
+        </label>
+      </form>
+    </section>
+
+    <section class="panel stub-panel" id="blacklist-countries">
+      <h2>Country blacklist <span class="badge">no data source wired</span></h2>
+      <p class="hint">Entries are stored but currently have no effect — no GeoIP/ASN lookup is
+        configured yet (see CLAUDE.md Open decisions). Safe to prepare a list ahead of time.</p>
+      <div class="list-controls">
+        <input type="search" class="filter-input" data-category="countries" placeholder="Filter entries...">
+        <label class="page-size-label">Show
+          <select class="page-size-select" data-category="countries">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <button type="button" class="clear-all-btn" data-category="countries">Clear all</button>
+      </div>
+      <p class="hint list-count" id="count-countries"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>Country</th><th>Source</th><th>Added</th><th>Expires</th><th></th></tr>
+          </thead>
+          <tbody id="list-countries"></tbody>
+        </table>
+      </div>
+      <form class="add-form" data-category="countries">
+        <input type="text" placeholder="ISO country code, e.g. XX" required>
+        <button type="submit">Add</button>
+      </form>
+      <form class="import-url-form" data-category="countries">
+        <input type="url" placeholder="https://example.com/countries.txt" required>
+        <button type="submit">Import from URL</button>
+        <label class="import-btn">Upload .list (one entry per line)
+          <input type="file" class="import-input" data-category="countries" accept=".list,.txt,text/plain" hidden>
+        </label>
+      </form>
+    </section>
+
+    <section class="panel" id="blacklist-isps">
+      <h2>ISP blacklist</h2>
+      <p class="hint">Matched against the ASN lookup's organization name (case-insensitive,
+        substring), same as User-Agent — requires <code>geoip.asn_mmdb_path</code> to be
+        configured, otherwise every request's ISP is "unknown" and this list has no effect.
+        You can also add an entry directly from a row in the Requests panel's traffic list.</p>
+      <div class="list-controls">
+        <input type="search" class="filter-input" data-category="isps" placeholder="Filter entries...">
+        <label class="page-size-label">Show
+          <select class="page-size-select" data-category="isps">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <button type="button" class="clear-all-btn" data-category="isps">Clear all</button>
+      </div>
+      <p class="hint list-count" id="count-isps"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>ISP</th><th>Source</th><th>Added</th><th>Expires</th><th></th></tr>
+          </thead>
+          <tbody id="list-isps"></tbody>
+        </table>
+      </div>
+      <form class="add-form" data-category="isps">
+        <input type="text" placeholder="ISP name" required>
+        <button type="submit">Add</button>
+      </form>
+      <form class="import-url-form" data-category="isps">
+        <input type="url" placeholder="https://example.com/isps.txt" required>
+        <button type="submit">Import from URL</button>
+        <label class="import-btn">Upload .list (one entry per line)
+          <input type="file" class="import-input" data-category="isps" accept=".list,.txt,text/plain" hidden>
+        </label>
+      </form>
+    </section>
+
+    <section class="panel" id="ban-panel">
+      <h2>Ban &amp; scoring</h2>
+      <p class="hint">Each blocked request adds its check's score to that IP. Crossing the
+        threshold blocks the IP for the ban duration (shows up in IP / CIDR above, tagged
+        <span class="source-pill score">auto</span>) and resets its score to zero.</p>
+      <div class="toggle-row">
+        <input type="checkbox" id="ban-enabled">
+        <label for="ban-enabled">Enable scoring &amp; auto-ban</label>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label for="ban-threshold">Threshold (points)</label>
+          <input type="number" id="ban-threshold" min="1">
+        </div>
+        <div class="settings-field">
+          <label for="ban-duration">Ban duration (hours)</label>
+          <input type="number" id="ban-duration" min="1">
+        </div>
+      </div>
+      <p class="field-label">Points per check</p>
+      <div class="settings-grid" id="ban-scores-grid"></div>
+      <button type="button" class="save-btn" id="ban-save-btn">Save</button>
+    </section>
+
+    <section class="panel" id="speed-panel">
+      <h2>Speed check</h2>
+      <p class="hint">Flags a client IP navigating too fast: more than the configured number of
+        requests within a sliding time window. An over-limit request is scored and blocked
+        (score name <code>speed_check</code>, see Ban &amp; scoring above) the same way as
+        every other check.</p>
+      <div class="toggle-row">
+        <input type="checkbox" id="speed-enabled">
+        <label for="speed-enabled">Enable speed check</label>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label for="speed-max-requests">Requests (n)</label>
+          <input type="number" id="speed-max-requests" min="1">
+        </div>
+        <div class="settings-field">
+          <label for="speed-window-seconds">Per seconds (m)</label>
+          <input type="number" id="speed-window-seconds" min="1">
+        </div>
+      </div>
+      <button type="button" class="save-btn" id="speed-save-btn">Save</button>
+    </section>
+
+    <section class="panel" id="limits-panel">
+      <h2>Limits</h2>
+      <p class="hint">Soft body-size limit — distinct from the hard safety cap that protects
+        against unbounded allocation. Exceeding this scores + returns a clean 403 instead of
+        aborting the connection. 0 disables it.</p>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label for="body-size-limit">Max body size (MB, 0 = disabled)</label>
+          <input type="number" id="body-size-limit" min="0" step="0.1">
+        </div>
+      </div>
+      <button type="button" class="save-btn" id="limits-save-btn">Save</button>
+    </section>
+
+    <section class="panel" id="pages-panel">
+      <h2>Response pages</h2>
+      <p class="hint">Shown to clients on a block. Leave blank to use the built-in default.
+        &ldquo;Blocked&rdquo; is used for rule matches (blacklists, size limit); &ldquo;Banned&rdquo;
+        is used specifically for temporary/score-triggered IP blocks.</p>
+      <label class="field-label" for="blocked-html">Blocked page HTML</label>
+      <textarea class="pages-textarea" id="blocked-html" placeholder="(built-in default)"></textarea>
+      <label class="field-label" for="banned-html">Banned page HTML</label>
+      <textarea class="pages-textarea" id="banned-html" placeholder="(built-in default)"></textarea>
+      <button type="button" class="save-btn" id="pages-save-btn">Save</button>
+
+      <h3 class="subsection-heading">Status code pages</h3>
+      <p class="hint">Custom HTML for specific origin response status codes (e.g. 404, 503).
+        Applies when the upstream's response carries that status &mdash; only the page body is
+        replaced, the status code itself always still comes from the origin.</p>
+      <p class="hint list-count" id="count-status_pages"></p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>Code</th><th>Added</th><th></th></tr>
+          </thead>
+          <tbody id="list-status_pages"></tbody>
+        </table>
+      </div>
+      <button type="button" class="save-btn" id="status-page-add-btn">Add status page</button>
+    </section>
+
+    <section class="panel" id="users-panel">
+      <h2>Admin users</h2>
+      <p class="hint">Anyone with a login can manage everything on this page. At least one user
+        must always remain.</p>
+      <div class="table-wrap">
+        <table class="users-table" id="users-table"></table>
+      </div>
+      <form class="add-form" id="user-add-form" style="margin-top:14px;">
+        <input type="text" id="user-add-username" placeholder="Username" required>
+        <input type="password" id="user-add-password" placeholder="Password (min 8 chars)" minlength="8" required>
+        <button type="submit">Add user</button>
+      </form>
+
+      <h3 class="subsection-heading">Login history</h3>
+      <p class="hint">Successful admin logins (setup counts too), newest first. Not persisted
+        &mdash; cleared on restart, same as sessions themselves.</p>
+      <div class="table-wrap">
+        <table class="ip-blocks-table">
+          <thead>
+            <tr><th>User</th><th>IP</th><th>Time</th></tr>
+          </thead>
+          <tbody id="login-history-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <aside class="side-stats" aria-label="Session stats">
+    <h3>Session stats</h3>
+    <div class="stat">
+      <div class="stat-value" id="stat-live-visitors">0</div>
+      <div class="stat-label">Live visitors (5m)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-total">0</div>
+      <div class="stat-label">Requests seen</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value ok" id="stat-allowed">0</div>
+      <div class="stat-label">Allowed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value danger" id="stat-blocked">0</div>
+      <div class="stat-label">Blocked</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-rate">0%</div>
+      <div class="stat-label">Block rate</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-block">
+      <div class="stat-label">Top block reason</div>
+      <div class="stat-sub" id="stat-top-reason">&mdash;</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">Unique client IPs</div>
+      <div class="stat-sub" id="stat-unique-ips">&mdash;</div>
+    </div>
+    <p class="hint stat-note">Most stats are computed client-side from requests currently
+      loaded (see the Show selector in the Requests panel). Live visitors is server-computed.</p>
+  </aside>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<dialog id="confirm-dialog" class="confirm-dialog">
+  <p id="confirm-dialog-message"></p>
+  <div class="confirm-dialog-actions">
+    <button type="button" id="confirm-dialog-cancel">Cancel</button>
+    <button type="button" id="confirm-dialog-confirm" class="danger">Clear all</button>
+  </div>
+</dialog>
+
+<dialog id="status-page-dialog" class="edit-dialog">
+  <h3 id="status-page-dialog-title">Add status page</h3>
+  <label class="field-label" for="status-page-code">Status code</label>
+  <input type="number" id="status-page-code" min="100" max="599" placeholder="e.g. 404" required>
+  <label class="field-label" for="status-page-html">HTML</label>
+  <textarea class="pages-textarea" id="status-page-html" placeholder="&lt;html&gt;..."></textarea>
+  <div class="confirm-dialog-actions">
+    <button type="button" id="status-page-dialog-cancel">Cancel</button>
+    <button type="button" id="status-page-dialog-save" class="save-btn">Save</button>
+  </div>
+</dialog>
+
+<script src="globe-embed.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

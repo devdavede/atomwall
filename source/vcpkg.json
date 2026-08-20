@@ -1,0 +1,39 @@
+{
+  "name": "atomwall",
+  "version": "0.1.0",
+  "builtin-baseline": "94a541197763a4f449a1b91478df48c0584a6256",
+  "dependencies": [
+    {
+      "name": "boost-asio",
+      "version>=": "1.86.0"
+    },
+    {
+      "name": "boost-beast",
+      "version>=": "1.86.0"
+    },
+    {
+      "name": "boost-json",
+      "version>=": "1.86.0"
+    },
+    {
+      "name": "yaml-cpp",
+      "version>=": "0.8.0"
+    },
+    {
+      "name": "openssl",
+      "version>=": "3.3.2"
+    },
+    {
+      "name": "spdlog",
+      "version>=": "1.14.1"
+    },
+    {
+      "name": "catch2",
+      "version>=": "3.6.0"
+    },
+    {
+      "name": "libmaxminddb",
+      "version>=": "1.13.3"
+    }
+  ]
+}
