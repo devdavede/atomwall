@@ -71,7 +71,7 @@ http::response<http::string_body> handle_embed_script(const std::filesystem::pat
     return res;
 }
 
-// Serves webui/vendor/* (the locally-vendored globe.gl + three.js + earth
+// Serves webui/vendor/* (the locally-vendored globe.gl + earth
 // textures — see webui/globe-embed.js) so the public embed works standalone
 // without reaching into the loopback-only admin static server. Deliberately
 // scoped to just this one prefix, not a general static-file fallback for the

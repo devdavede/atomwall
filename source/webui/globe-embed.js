@@ -1,10 +1,10 @@
-// atomwall live visitor globe. Renders with the vendored globe.gl + three.js
+// atomwall live visitor globe. Renders with the vendored globe.gl
 // (webui/vendor/) — no CDN fetch at runtime: every visitor of
 // every site this is embedded on would otherwise leak their IP to that CDN
 // on page load, defeating the whole point of the anonymized data contract
-// below. Same technique as https://globe.gl/example/clouds/ (Blue Marble +
-// topology bump map + atmosphere + a manually-added, independently-rotating
-// cloud sphere), vendored locally instead of loaded from jsdelivr/esm.sh.
+// below. Same technique as https://globe.gl/example/ (Blue Marble +
+// topology bump map + atmosphere), vendored locally instead of loaded from
+// jsdelivr/esm.sh.
 //
 // Used in two places:
 //   1. Admin dashboard (webui/index.html): loaded plain, mounted explicitly
@@ -49,25 +49,11 @@
   const RED = "#ff6161";
   const ARC_LIFETIME_MS = 1600;
   const ARC_DASH_ANIMATE_MS = 1500;
-  const CLOUDS_ALTITUDE = 0.006;
-  const CLOUDS_ROTATION_SPEED_DEG = -0.006; // per frame, matches the reference example
 
   // Loaded once per page and shared by every mount() call (e.g. an
   // admin-dashboard mount plus a public-embed auto-mount can't both happen
   // on the same page today, but this stays correct if that changes).
-  // Resolves with a THREE namespace once both vendored scripts are loaded.
-  //
-  // Loads three.js (a classic UMD build — it only knows how to attach
-  // itself as `window.THREE`) first, captures that reference for our own
-  // cloud-mesh layer below, then deletes `window.THREE` again before
-  // loading globe.gl. globe.gl checks for a global THREE at its own
-  // module-init time and, if it finds one, expects a specific newer API
-  // surface (THREE.Timer) this vendored build predates, which crashes it
-  // outright — hiding the global lets it fall back to its own internal
-  // minimal stub instead, which is all it actually needs. This is exactly
-  // what the reference example (globe.gl/example/clouds) gets too: it only
-  // ever imports THREE as a *local* ES module, so window.THREE is never set
-  // there either.
+  // Resolves once the vendored globe.gl bundle (which includes its own three.js) is loaded.
   let globePromise = null;
   function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -80,11 +66,7 @@
   }
   function ensureGlobeLibrary() {
     if (!globePromise) {
-      globePromise = loadScript(VENDOR_BASE + "three.min.js").then(() => {
-        const THREE = window.THREE;
-        delete window.THREE;
-        return loadScript(VENDOR_BASE + "globe.gl.min.js").then(() => THREE);
-      });
+      globePromise = loadScript(VENDOR_BASE + "globe.gl.min.js");
     }
     return globePromise;
   }
@@ -96,7 +78,6 @@
 
     let destroyed = false;
     let world = null;
-    let cloudsMesh = null;
     let serverLoc = null;
     let activeArcs = [];
     let eventSource = null;
@@ -159,7 +140,7 @@
     }
 
     ensureGlobeLibrary()
-      .then((THREE) => {
+      .then(() => {
         if (destroyed) return;
 
         world = new Globe(container, { animateIn: false })
@@ -184,24 +165,6 @@
         if (resizeObserver) resizeObserver.observe(container);
         window.addEventListener("resize", resize);
         resize();
-
-        // Cloud layer: three-globe/globe.gl have no first-class "clouds" API,
-        // so — same as the reference example — a second, larger, transparent
-        // sphere is added straight to the scene and spun independently,
-        // using the THREE captured by ensureGlobeLibrary above.
-        new THREE.TextureLoader().load(VENDOR_BASE + "clouds.webp", (cloudsTexture) => {
-          if (destroyed) return;
-          cloudsMesh = new THREE.Mesh(
-            new THREE.SphereGeometry(world.getGlobeRadius() * (1 + CLOUDS_ALTITUDE), 75, 75),
-            new THREE.MeshPhongMaterial({ map: cloudsTexture, transparent: true })
-          );
-          world.scene().add(cloudsMesh);
-          (function rotateClouds() {
-            if (destroyed || !cloudsMesh) return;
-            cloudsMesh.rotation.y += (CLOUDS_ROTATION_SPEED_DEG * Math.PI) / 180;
-            requestAnimationFrame(rotateClouds);
-          })();
-        });
 
         connect();
       })

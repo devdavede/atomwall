@@ -172,7 +172,7 @@ If you enable GeoIP, the `.mmdb` database itself isn't bundled — you supply it
 - **OpenSSL** for TLS termination and password hashing primitives
 - **yaml-cpp** for config, **spdlog** for logging, **Catch2** for tests
 - **libmaxminddb** for GeoIP/ASN lookups
-- **[globe.gl](https://github.com/vasturiano/globe.gl)** + **[three.js](https://github.com/mrdoob/three.js)** (MIT-licensed, vendored) for the Live Visitor Globe — see [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)
+- **[globe.gl](https://github.com/vasturiano/globe.gl)** (MIT-licensed, vendored; bundles **[three.js](https://github.com/mrdoob/three.js)**) for the Live Visitor Globe — see [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)
 
 ## 🗺️ Status
 

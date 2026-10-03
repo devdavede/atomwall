@@ -1,6 +1,6 @@
 # Third-party licenses
 
-atomwall vendors a small number of third-party JavaScript libraries directly into
+atomwall vendors third-party JavaScript libraries directly into
 `source/webui/vendor/` (vendored rather than loaded from a CDN, so visitors' IPs never leak to a third party). Their license terms require the copyright and
 permission notice below to be included in copies of the software — reproduced here in full.
 
@@ -34,7 +34,7 @@ Source: https://github.com/vasturiano/globe.gl
 
 ## three.js
 
-`source/webui/vendor/three.min.js` (a dependency of globe.gl, loaded alongside it)
+bundled inside `source/webui/vendor/globe.gl.min.js` (a dependency of globe.gl)
 
 The MIT License
 
@@ -59,6 +59,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 Source: https://github.com/mrdoob/three.js
+
+## Earth color and topology textures (provenance unverified)
+
+`source/webui/vendor/earth-color.webp` and `earth-topology.webp` appear to be the
+`earth-blue-marble.jpg` / `earth-topology.png` textures from the
+[three-globe](https://github.com/vasturiano/three-globe/tree/master/example/img) examples
+(Blue Marble is NASA Earth Observatory imagery), re-encoded to WebP. three-globe documents
+no license for them; their origin and terms still need to be confirmed.
 
 ## GeoIP data (not bundled — operator-supplied)
 
