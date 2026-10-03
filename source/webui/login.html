@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atomwall</title>
+<link rel="icon" type="image/png" href="favicon-32.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="auth-shell">
+  <div class="auth-card">
+    <div class="brand" style="justify-content:center;margin-bottom:18px;">
+      <img class="brand-mark" src="icon-128.png" alt="" width="28" height="28">
+      <span class="brand-name">atomwall</span>
+    </div>
+    <h2 id="auth-title">Sign in</h2>
+    <p class="hint" id="auth-hint">Enter your admin credentials.</p>
+    <form method="post" id="auth-form">
+      <label class="auth-label" for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" required>
+      <label class="auth-label" for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+      <button type="submit" id="auth-submit">Sign in</button>
+      <p class="auth-error" id="auth-error"></p>
+    </form>
+    <button type="button" class="save-btn" id="passkey-signin-btn" style="width:100%;margin-top:10px;">
+      Sign in with a passkey
+    </button>
+
+    <form method="post" id="mfa-form" style="display:none;">
+      <label class="auth-label" for="mfa-code" id="mfa-label">Authenticator code</label>
+      <input type="text" id="mfa-code" name="mfa-code" inputmode="numeric" autocomplete="one-time-code" required>
+      <button type="submit" id="mfa-submit">Verify</button>
+      <p class="auth-error" id="mfa-error"></p>
+      <p class="hint"><a href="#" id="mfa-use-backup-code">Use a backup code instead</a></p>
+      <p class="hint" id="mfa-use-passkey-row" style="display:none;">
+        <a href="#" id="mfa-use-passkey">Use your passkey instead</a>
+      </p>
+    </form>
+  </div>
+</div>
+<script src="login.js"></script>
+</body>
+</html>
